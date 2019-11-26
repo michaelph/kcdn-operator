@@ -1,0 +1,23 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kcdn-operator
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: kcdn-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kcdn-operator
+    spec:
+      serviceAccountName: kcdn-operator
+      containers:
+        - image: michael/kcdn-operator:v2.1
+          name: kcdn-operator
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080

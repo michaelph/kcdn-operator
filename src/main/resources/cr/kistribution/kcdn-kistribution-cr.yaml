@@ -1,0 +1,16 @@
+apiVersion: kcdn.rnp.br/v1alpha1
+kind: Kistribution
+metadata:
+  name: kcdn-example-distribution
+spec:
+  distribution-types:
+    - basic
+    - premium
+  distribution-definitions:
+    basic:
+      - df
+    premium:
+      - df
+      - sp
+      - rj
+  replicas: 1

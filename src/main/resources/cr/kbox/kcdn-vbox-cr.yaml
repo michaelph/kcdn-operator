@@ -1,0 +1,20 @@
+apiVersion: kcdn.rnp.br/v1alpha1
+kind: Kbox
+metadata:
+  name: kcdn-vbox
+  namespace: default
+spec:
+  replicas: 1
+  distribution: kcdn-example-distribution
+  distribution-strategy: basic
+  template:
+    metadata:
+      labels:
+        app: kcdn-vbox
+    spec:
+      containers:
+        - image: michael/kcdn-vbox:v1.8
+          name: kcdn-vbox
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080

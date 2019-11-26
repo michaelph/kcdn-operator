@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kcdn-operator
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kcdn-operator
+  namespace: default
+rules:
+  - apiGroups:
+    - ''
+    - 'extensions'
+    - 'apps'
+    - 'rbac.authorization.k8s.io'
+    resources:
+     - 'serviceaccounts'
+     - 'clusterroles'
+     - 'clusterrolebindings'
+     - 'secrets'
+     - 'configmaps'
+     - 'daemonsets'
+    verbs:
+    - 'list'
+    - 'watch'
+    - 'create'
+  # -------------------------------------------------------------------------
+  # Below are the permissions are for the agent.
+  # The operator needs these permissions to create the agent's cluster role.
+  # -------------------------------------------------------------------------
+  - apiGroups:
+      - ""
+    resources:
+      - "namespaces"
+      - "nodes"
+      - "pods"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - kcdn.rnp.br
+    resources:
+      - '*'
+    verbs:
+      - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kcdn-operator
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: kcdn-operator
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: kcdn-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+

@@ -1,0 +1,20 @@
+apiVersion: kcdn.rnp.br/v1alpha1
+kind: Kopology
+metadata:
+  name: kcdn-example-topology
+spec:
+  regions:
+    - sp
+    - df
+    - rj
+  links:
+    sp:
+      - df
+      - rj
+    rj:
+      - df
+      - sp
+    df:
+      - rj
+      - sp
+    
