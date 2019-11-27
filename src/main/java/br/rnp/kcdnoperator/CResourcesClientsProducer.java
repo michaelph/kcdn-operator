@@ -26,7 +26,9 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.internal.KubernetesDeserializer;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
+@RegisterForReflection
 public class CResourcesClientsProducer {
     private static final String NAMESPACE = "default";
     private static final Logger LOGGER = LoggerFactory.getLogger(CResourcesClientsProducer.class);

@@ -1,7 +1,7 @@
 apiVersion: kcdn.rnp.br/v1alpha1
 kind: Kbox
 metadata:
-  name: kcdn-vbox
+  name: kcdn-rnp
   namespace: default
 spec:
   replicas: 1

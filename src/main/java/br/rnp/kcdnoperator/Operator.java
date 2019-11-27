@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import br.rnp.kcdnoperator.controllers.KcdnController;
-import br.rnp.kcdnoperator.controllers.KopologyController;
 import br.rnp.kcdnoperator.crs.kbox.Kbox;
 import br.rnp.kcdnoperator.crs.kbox.KboxDoneable;
 import br.rnp.kcdnoperator.crs.kbox.KboxList;

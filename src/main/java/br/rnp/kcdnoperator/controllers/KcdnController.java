@@ -1,7 +1,6 @@
 package br.rnp.kcdnoperator.controllers;
 
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -21,16 +20,24 @@ import br.rnp.kcdnoperator.crs.kistribution.KistributionList;
 import br.rnp.kcdnoperator.crs.kopology.Kopology;
 import br.rnp.kcdnoperator.crs.kopology.KopologyDoneable;
 import br.rnp.kcdnoperator.crs.kopology.KopologyList;
+import io.fabric8.kubernetes.api.model.DoneableService;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodBuilder;
-import io.fabric8.kubernetes.api.model.PodFluent.SpecNested;
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.api.model.extensions.DoneableIngress;
+import io.fabric8.kubernetes.api.model.extensions.HTTPIngressPath;
+import io.fabric8.kubernetes.api.model.extensions.HTTPIngressPathBuilder;
+import io.fabric8.kubernetes.api.model.extensions.Ingress;
+import io.fabric8.kubernetes.api.model.extensions.IngressBuilder;
+import io.fabric8.kubernetes.api.model.extensions.IngressRule;
+import io.fabric8.kubernetes.api.model.extensions.IngressRuleBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.dsl.ServiceResource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
@@ -135,7 +142,7 @@ public class KcdnController {
             @Override
             public void onUpdate(Kbox oldObj, Kbox newObj) {
                 enqueueKbox(newObj);
-                LOGGER.info("Kistribution UPDATED: " + newObj.getMetadata().getName());
+                LOGGER.info("Kbox UPDATED: " + newObj.getMetadata().getName());
 
             }
 
@@ -179,7 +186,7 @@ public class KcdnController {
 
     public void run() {
         LOGGER.info("Starting Kcdn controller");
-        while (!kopologyInformer.hasSynced())
+        while (!kopologyInformer.hasSynced() || !kistributionInformer.hasSynced() || !kboxInformer.hasSynced())
 
             while (true) {
                 try {
@@ -228,10 +235,20 @@ public class KcdnController {
                         .ifPresent(distributionType -> {
                             List<String> zones = kistribution.getSpec().getDistributionDefinitions()
                                     .get(distributionType);
+                            Ingress ingress = null;
                             for (String zone : zones) {
+                                // build
                                 Deployment deployment = buildKboxDeployment(kbox, zone);
-                                kubernetesClient.apps().deployments().inNamespace("default").createOrReplace(deployment);
+
+                                Service service = buildKboxService(kbox, zone);
+                                ingress = buildKboxIngress(ingress, kbox, zone);
+                                // Execute
+                                kubernetesClient.apps().deployments().inNamespace("default")
+                                        .createOrReplace(deployment);
+                                kubernetesClient.services().createOrReplace(service);
+
                             }
+                            kubernetesClient.extensions().ingresses().createOrReplace(ingress);
 
                         });
             });
@@ -240,9 +257,36 @@ public class KcdnController {
 
     }
 
+    private Ingress buildKboxIngress(Ingress ingress, Kbox kbox, String zone) {
+        if (ingress == null) {
+            Map<String, String> annotations = new HashMap<>();
+            annotations.put("kubernetes.io/ingress.class", "nginx");
+            ingress = new IngressBuilder().withNewMetadata().withName(kbox.getMetadata().getName() + "-ingress")
+                    .withAnnotations(annotations).endMetadata().withNewSpec().addNewRule()
+                    .withHost(kbox.getMetadata().getName() + ".ids.rnp.br").withNewHttp().addNewPath()
+                    .withPath("/" + zone).withNewBackend().withNewServiceName("vbox-" + zone + "-svc")
+                    .withNewServicePort(8080).endBackend().endPath().endHttp().endRule().endSpec().build();
+        } else {
+            HTTPIngressPath httpIngressPath = new HTTPIngressPathBuilder().withPath("/" + zone).withNewBackend()
+                    .withNewServiceName("vbox-" + zone + "-svc").withNewServicePort(8080).endBackend().build();
+            ingress.getSpec().getRules().get(0).getHttp().getPaths().add(httpIngressPath);
+        }
+        return ingress;
+    }
+
+    private Service buildKboxService(Kbox kbox, String zone) {
+        ServiceResource<Service, DoneableService> serviceResource = kubernetesClient.services()
+                .load("/storage/sdi/dev/kcdn-operator/src/main/deploy/vbox/service.yaml");
+        Service service = serviceResource.get();
+        service.getMetadata().setName("vbox-" + zone + "-svc");
+        service.getSpec().getSelector().put("app", "vbox-" + zone + "-app");
+
+        return service;
+    }
+
     private Deployment buildKboxDeployment(Kbox kbox, String zone) {
         Map<String, String> labels = new Hashtable<>();
-        labels.put("app", "vbox-" + zone);
+        labels.put("app", "vbox-" + zone + "-app");
         Map<String, String> nodeSelectorLabels = new Hashtable<>();
         nodeSelectorLabels.put("region.id", zone);
 
@@ -286,20 +330,6 @@ public class KcdnController {
         Optional<Kistribution> optionalKistribution = k8sKistributionClient.list().getItems().stream()
                 .filter(k -> k.getMetadata().getName().equals(kboxDistribution)).findFirst();
         return optionalKistribution;
-    }
-
-    private Pod createNewPod(Kbox kbox, List<String> zones) {
-        SpecNested<PodBuilder> spec = new PodBuilder().withNewMetadata()
-                .withGenerateName(kbox.getMetadata().getName() + "-pod")
-                .withNamespace(kbox.getMetadata().getNamespace())
-                .withLabels(Collections.singletonMap("vbox", kbox.getMetadata().getName())).addNewOwnerReference()
-                .withController(true).withKind("Kbox").withApiVersion("kcdn.rnp.br/v1alpha1")
-                .withName(kbox.getMetadata().getName()).withNewUid(kbox.getMetadata().getUid()).endOwnerReference()
-                .endMetadata().withNewSpec().addNewContainer().withName("busybox").withImage("busybox")
-                .withCommand("sleep", "3600").endContainer();
-
-        return null;
-
     }
 
     private OwnerReference getControllerOf(Pod pod) {

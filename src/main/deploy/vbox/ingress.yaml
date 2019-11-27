@@ -1,0 +1,13 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: vbox-ingress
+spec:
+  rules:
+  - host: kcdn-vbox.ids.rnp.br
+    http:
+      paths:
+      - path: /region
+        backend:
+          serviceName: vbox-region-svc
+          servicePort: 8080
