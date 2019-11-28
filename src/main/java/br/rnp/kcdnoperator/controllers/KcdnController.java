@@ -261,14 +261,15 @@ public class KcdnController {
         if (ingress == null) {
             Map<String, String> annotations = new HashMap<>();
             annotations.put("kubernetes.io/ingress.class", "nginx");
+            annotations.put("nginx.ingress.kubernetes.io/rewrite-target", "/");
             ingress = new IngressBuilder().withNewMetadata().withName(kbox.getMetadata().getName() + "-ingress")
                     .withAnnotations(annotations).endMetadata().withNewSpec().addNewRule()
                     .withHost(kbox.getMetadata().getName() + ".ids.rnp.br").withNewHttp().addNewPath()
                     .withPath("/" + zone).withNewBackend().withNewServiceName("vbox-" + zone + "-svc")
-                    .withNewServicePort(8080).endBackend().endPath().endHttp().endRule().endSpec().build();
+                    .withNewServicePort(80).endBackend().endPath().endHttp().endRule().endSpec().build();
         } else {
             HTTPIngressPath httpIngressPath = new HTTPIngressPathBuilder().withPath("/" + zone).withNewBackend()
-                    .withNewServiceName("vbox-" + zone + "-svc").withNewServicePort(8080).endBackend().build();
+                    .withNewServiceName("vbox-" + zone + "-svc").withNewServicePort(80).endBackend().build();
             ingress.getSpec().getRules().get(0).getHttp().getPaths().add(httpIngressPath);
         }
         return ingress;
@@ -296,9 +297,11 @@ public class KcdnController {
                 .withNewUid(kbox.getMetadata().getUid()).endOwnerReference().endMetadata().withNewSpec()
                 .withReplicas(kbox.getSpec().getReplicas()).withNewSelector().withMatchLabels(labels).endSelector()
                 .withNewTemplate().withNewMetadata().withLabels(labels).endMetadata().withNewSpec().addNewContainer()
-                .withName("vbox").withImage("nginx:stable").addNewPort().withContainerPort(80).endPort()
-                .withImagePullPolicy("IfNotPresent").endContainer().withNodeSelector(nodeSelectorLabels).endSpec()
-                .endTemplate().endSpec().build();
+                .withName("vbox").withImage("michael/kcdn-vbox:v1.1").addNewEnv().withNewName("POD_IP")
+                .withNewValueFrom().withNewFieldRef().withNewFieldPath("status.podIP").endFieldRef().endValueFrom()
+                .endEnv().addNewEnv().withNewName("REGION").withNewValue("vbox-service-" + zone).endEnv().addNewPort()
+                .withContainerPort(8080).endPort().withImagePullPolicy("IfNotPresent").endContainer()
+                .withNodeSelector(nodeSelectorLabels).endSpec().endTemplate().endSpec().build();
 
         /*
          * return new DeploymentBuilder().withNewMetadata().withName("vbox-deploy")
