@@ -26,13 +26,10 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
-import io.fabric8.kubernetes.api.model.extensions.DoneableIngress;
 import io.fabric8.kubernetes.api.model.extensions.HTTPIngressPath;
 import io.fabric8.kubernetes.api.model.extensions.HTTPIngressPathBuilder;
 import io.fabric8.kubernetes.api.model.extensions.Ingress;
 import io.fabric8.kubernetes.api.model.extensions.IngressBuilder;
-import io.fabric8.kubernetes.api.model.extensions.IngressRule;
-import io.fabric8.kubernetes.api.model.extensions.IngressRuleBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -297,34 +294,11 @@ public class KcdnController {
                 .withNewUid(kbox.getMetadata().getUid()).endOwnerReference().endMetadata().withNewSpec()
                 .withReplicas(kbox.getSpec().getReplicas()).withNewSelector().withMatchLabels(labels).endSelector()
                 .withNewTemplate().withNewMetadata().withLabels(labels).endMetadata().withNewSpec().addNewContainer()
-                .withName("vbox").withImage("michael/kcdn-vbox:v1.1").addNewEnv().withNewName("POD_IP")
+                .withName("vbox").withImage("michael/kcdn-vbox:v1.3").addNewEnv().withNewName("POD_IP")
                 .withNewValueFrom().withNewFieldRef().withNewFieldPath("status.podIP").endFieldRef().endValueFrom()
                 .endEnv().addNewEnv().withNewName("REGION").withNewValue("vbox-service-" + zone).endEnv().addNewPort()
                 .withContainerPort(8080).endPort().withImagePullPolicy("IfNotPresent").endContainer()
                 .withNodeSelector(nodeSelectorLabels).endSpec().endTemplate().endSpec().build();
-
-        /*
-         * return new DeploymentBuilder().withNewMetadata().withName("vbox-deploy")
-         * .withNamespace(kbox.getMetadata().getNamespace()).addNewOwnerReference().
-         * withController(true)
-         * .withKind("Kbox").withApiVersion("kcdn.rnp.br/v1alpha1").withName(kbox.
-         * getMetadata().getName())
-         * .withNewUid(kbox.getMetadata().getUid()).endOwnerReference().endMetadata().
-         * withNewSpec()
-         * .withReplicas(kbox.getSpec().getReplicas()).withNewSelector().withMatchLabels
-         * (labels).endSelector()
-         * .withNewTemplate().withNewMetadata().withLabels(labels).endMetadata().
-         * withNewSpec().withNewAffinity()
-         * .withNewPodAffinity().addNewRequiredDuringSchedulingIgnoredDuringExecution().
-         * withNewLabelSelector()
-         * .addNewMatchExpression().withKey("region.id").withNewOperator("In").
-         * withValues(zone) .endMatchExpression().endLabelSelector()
-         * .withNewTopologyKey("failure-domain.beta.kubernetes.io/" + zone)
-         * .endRequiredDuringSchedulingIgnoredDuringExecution().endPodAffinity().
-         * endAffinity().addNewContainer()
-         * .withName("vbox").withImage("nginx:stable").addNewPort().withContainerPort(80
-         * ).endPort().endContainer() .endSpec().endTemplate().endSpec().build();
-         */
 
     }
 

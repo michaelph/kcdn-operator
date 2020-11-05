@@ -4,9 +4,11 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.Map;
 import java.util.Optional;
+
 import javax.enterprise.inject.Produces;
 import javax.inject.Named;
 import javax.inject.Singleton;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +79,7 @@ public class CResourcesClientsProducer {
 
             try {
                 final FileInputStream is = new FileInputStream(optionalConfig.get());
-                return new DefaultKubernetesClient().fromConfig(is).inNamespace(NAMESPACE);
+                return DefaultKubernetesClient.fromConfig(is).inNamespace(NAMESPACE);
             } catch (final KubernetesClientException e) {
                 LOGGER.error(e.getMessage(), e);
             } catch (final FileNotFoundException e) {
@@ -86,7 +88,14 @@ public class CResourcesClientsProducer {
         } else {
             LOGGER.warn("Operator config not found!");
             LOGGER.info("Assuming kubernetes environment!");
-            return new DefaultKubernetesClient().inNamespace(NAMESPACE);
+            try (KubernetesClient client = new DefaultKubernetesClient()) {
+                return client;
+            } catch (KubernetesClientException e) {
+                LOGGER.error(e.getMessage(), e);
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage(), e);
+            }
+
         }
         return null;
     }
